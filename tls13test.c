@@ -107,6 +107,7 @@ void configure_ssl_context(SSL_CTX *ctx)
     SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
 
     SSL_CTX_set_ecdh_auto(ctx, 1);
+    SSL_CTX_set_num_tickets(ctx, 0);
     SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
     SSL_CTX_set_keylog_callback(ctx, log_keys);
 
