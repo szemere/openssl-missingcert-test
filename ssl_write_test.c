@@ -18,9 +18,8 @@
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
-void mysleep()
+void sleep_1msec()
 {
-    /* sleep 1 msec */
     struct timespec ns = { .tv_sec = 0, .tv_nsec = 1000000};
     nanosleep(&ns, NULL);
 }
@@ -70,69 +69,46 @@ void configure_ssl_context(SSL_CTX *ctx)
 
     SSL_CTX_set_ecdh_auto(ctx, 1);
     SSL_CTX_set_num_tickets(ctx, 0);
-    //SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
 
-    // if (SSL_CTX_use_certificate_file(ctx, CRT_FILE, SSL_FILETYPE_PEM) <= 0) {
-    //     ERR_print_errors_fp(stderr);
-    //     exit(EXIT_FAILURE);
-    // }
+    if (SSL_CTX_use_certificate_file(ctx, CRT_FILE, SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
 
-    // if (SSL_CTX_use_PrivateKey_file(ctx, KEY_FILE, SSL_FILETYPE_PEM) <= 0 ) {
-    //     ERR_print_errors_fp(stderr);
-    //     exit(EXIT_FAILURE);
-    // }
-
+    if (SSL_CTX_use_PrivateKey_file(ctx, KEY_FILE, SSL_FILETYPE_PEM) <= 0 ) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
 }
 
 void client_send_data_in_chunks(SSL *ssl)
 {
-    const int to_send = 2048; // bigger than a single TCP packet
-
     const size_t buf_size = 512;
     char buf[buf_size];
     memset(buf, 'z', buf_size);
 
-    int sent = 0;
-    int remaining = to_send - sent;
-
-    while (remaining != 0) {
-        //sleep(1);
-        int w = SSL_write(ssl, buf, MIN(remaining, buf_size));
+    while (1) {
+        int w = SSL_write(ssl, buf, buf_size);
         fprintf(stderr, "SSL_write returned: %d\n", w);
 
-        if (w <= 0)
-          {
-              int ssl_error_code = SSL_get_error(ssl, w);
-              ERR_print_errors_fp(stderr);
+        if (w > 0)
+            break;
 
-              if (ssl_error_code == SSL_ERROR_WANT_READ || ssl_error_code == SSL_ERROR_WANT_WRITE)
-                {
-                    fprintf(stderr, "SSL want read or write, continue.\n");
-                    mysleep();
-                    continue;
-                }
-            
-              exit(EXIT_FAILURE);
-          }
+        int ssl_error_code = SSL_get_error(ssl, w);
+        ERR_print_errors_fp(stderr);
 
-        sent += w;
-        remaining = to_send - sent;
-    }
+        if (ssl_error_code != SSL_ERROR_WANT_READ && ssl_error_code != SSL_ERROR_WANT_WRITE)
+          exit(EXIT_FAILURE);
 
-    if (sent != to_send) {
-        fprintf(stderr, "sent != to_send\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "SSL want read or write, continue.\n");
+        sleep_1msec();
+        continue;
     }
 }
 
 int main(int argc, char **argv)
 {
     // openssl s_server -accept %s:%d -Verify 42 -verify_return_error -cert /tmp/server.cert -key /tmp/server.key
-
-    SSL_library_init();
-    OPENSSL_init_ssl(0,NULL);
-    //OpenSSL_add_all_algorithms();
-    //SSL_load_error_strings();
 
     SSL_CTX *ctx = create_ssl_context(TLS_client_method());
     configure_ssl_context(ctx);
@@ -142,11 +118,6 @@ int main(int argc, char **argv)
     SSL *ssl = SSL_new(ctx);
     SSL_set_fd(ssl, sock);
     SSL_set_connect_state(ssl);
-
-    // if (SSL_connect(ssl) <= 0) {
-    //     ERR_print_errors_fp(stderr);
-    //     exit(EXIT_FAILURE);
-    // }
 
     client_send_data_in_chunks(ssl);
 
