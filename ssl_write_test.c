@@ -67,6 +67,7 @@ void configure_ssl_context(SSL_CTX *ctx)
     SSL_CTX_set_ecdh_auto(ctx, 1);
     SSL_CTX_set_num_tickets(ctx, 0);
 
+/*
     if (SSL_CTX_use_certificate_file(ctx, EXPIRED_CRT_FILE, SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
@@ -76,6 +77,7 @@ void configure_ssl_context(SSL_CTX *ctx)
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
+*/
 }
 
 void try_sending_512bytes(SSL *ssl)
